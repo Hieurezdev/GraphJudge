@@ -2,11 +2,12 @@ import asyncio
 from openai import AsyncOpenAI
 from tqdm.asyncio import tqdm
 
-api_key = ""
-api_base = ""
+api_key = "empty"
+api_base = "http://localhost:8000/v1"
+model_name = "Qwen/Qwen3-4B-Instruct-2507"
 
 # Read the text
-folder = "GPT4o_result_GenWiki-Hard"
+folder = "GPT4o_mini_result_corpus10"
 with open(f'./datasets/{folder}/test.target', 'r') as f:
     text = [l.strip() for l in f.readlines()]
 
@@ -24,7 +25,7 @@ async def api_model(
     messages.append({"role": "user", "content": prompt})
     
     response = await openai_async_client.chat.completions.create(
-        model="gpt-4o", messages=messages, temperature=0, **kwargs
+        model=model_name, messages=messages, temperature=0, **kwargs
     )
 
     return response.choices[0].message.content
@@ -45,23 +46,24 @@ async def process_texts():
     for t in text:
         prompt = (
             f"""
-Transform the text into a semantic graph.
+Mục tiêu:
+Chuyển đổi văn bản thành một đồ thị ngữ nghĩa (dạng danh sách các bộ ba triples).
 
-Example#1:
-Text: Shotgate \"Thickets is a nature reserve in the United Kingdom operated by the Essex Wildlife Trust.\"
+Ví dụ 1:
+Văn bản: "Shotgate Thickets là một khu bảo tồn thiên nhiên ở Vương quốc Anh được điều hành bởi Essex Wildlife Trust."
 Semantic Graph: 
-```[["Shotgate Thickets", "instance of", "Nature reserve"], ["Shotgate Thickets", "country", "United Kingdom"], ["Shotgate Thickets", "operator", "Essex Wildlife Trust"]]```
-Example#2:
-Text: The Eiffel Tower, located in Paris, France, is a famous landmark and a popular tourist attraction. It was designed by the engineer Gustave Eiffel and completed in 1889.
+```[["Shotgate Thickets", "loại hình bảo tồn", "Khu bảo tồn thiên nhiên"], ["Shotgate Thickets", "quốc gia", "Vương quốc Anh"], ["Shotgate Thickets", "vận hành bởi", "Essex Wildlife Trust"]]```
+Ví dụ 2:
+Văn bản: "Tháp Eiffel tọa lạc tại Paris, Pháp, là một danh lam thắng cảnh nổi tiếng và là địa điểm thu hút khách du lịch. Nó được thiết kế bởi kỹ sư Gustave Eiffel và hoàn thành vào năm 1889."
 Semantic Graph:
-```[["Eiffel Tower", "located in", "Paris"], ["Eiffel Tower", "located in", "France"], ["Eiffel Tower", "instance of", "landmark"], ["Eiffel Tower", "attraction type", "tourist attraction"],["Eiffel Tower", "designed by", "Gustave Eiffel"], ["Eiffel Tower", "completion year", "1889"]]```
+```[["Tháp Eiffel", "tọa lạc tại", "Paris"], ["Tháp Eiffel", "tọa lạc tại", "Pháp"], ["Tháp Eiffel", "là một", "danh lam thắng cảnh"], ["Tháp Eiffel", "được thiết kế bởi", "Gustave Eiffel"], ["Tháp Eiffel", "hoàn thành vào", "1889"]]```
 
-Note: 
-1. Make sure each item in the list is a triple with strictly three items.
-2. Give me the answer in the form of a semantic graph extactly as example shown, which is a list of lists.
-3. DO NOT output like '```json[ .. ]```', SHOUDLE BE LIKE '```[...]```'.
+Lưu ý: 
+1. Hãy chắc chắn rằng mỗi phần tử trong danh sách là một bộ ba (triple) có đúng 3 phần tử.
+2. Trả về kết quả dưới dạng một đồ thị ngữ nghĩa (semantic graph) giống hệt ví dụ trên (danh sách các danh sách con).
+3. KHÔNG trả về định dạng kiểu '```json[ .. ]```', định dạng bắt buộc phải là dạng '```[...]```'.
 
-Text: \"{t}\"
+Văn bản: "{t}"
 Semantic Graph:
 """
         )

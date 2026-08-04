@@ -7,17 +7,18 @@ from tqdm.asyncio import tqdm
 from openai import AsyncOpenAI
 
 # Set API key and base URL
-
-api_key = ""
-api_base = ""
+api_key = "empty"
+api_base = "http://localhost:8000/v1"
+model_name = "Qwen/Qwen3-4B-Instruct-2507"
 openai_async_client = AsyncOpenAI(api_key=api_key, base_url=api_base)
 
 # Read the text to be denoised
 text = []
 entity = []
 # dataset = "rebel_sub"
-dataset = "GenWiki-Hard"
+# dataset = "GenWiki-Hard"
 # dataset = "SCIERC"
+dataset = "corpus10"
 dataset_path = f'./datasets/GPT4o_mini_result_{dataset}/'
 Denoised_Iteration = 1
 Graph_Iteration = 1
@@ -33,7 +34,7 @@ with open(dataset_path + f'Iteration{Denoised_Iteration}/test_entity.txt', 'r') 
 async def api_model(prompt, **kwargs):
     messages = [{"role": "user", "content": prompt}]
     response = await openai_async_client.chat.completions.create(
-        model="gpt-3.5-turbo", messages=messages, temperature=0.1, **kwargs
+        model=model_name, messages=messages, temperature=0.1, **kwargs
     )
     return response.choices[0].message.content
 
@@ -50,22 +51,21 @@ async def main():
     prompts = []
     for i in range(len(text)):
         prompt = (
-                f"Goal:\nTransform the text into a semantic graph(a list of triples) with the given text and entities. "
-                f"In other words, You need to find relations between the given entities with the given text.\n"
-                f"Attention:\n1.Generate triples as many as possible. "
-                f"2.Make sure each item in the list is a triple with strictly three items.\n\n"
-                f"Here are two examples:\n"
-                f"Example#1: \nText: \"Shotgate Thickets is a nature reserve in the United Kingdom operated by the Essex Wildlife Trust.\"\n"
-                f"Entity List: [\"Shotgate Thickets\", \"Nature reserve\", \"United Kingdom\", \"Essex Wildlife Trust\"]\n"
-                f"Semantic Graph: [[\"Shotgate Thickets\", \"instance of\", \"Nature reserve\"], "
-                f"[\"Shotgate Thickets\", \"country\", \"United Kingdom\"], [\"Shotgate Thickets\", \"operator\", \"Essex Wildlife Trust\"]]\n"
-                f"Example#2:\nText: \"The Eiffel Tower, located in Paris, France, is a famous landmark and a popular tourist attraction. "
-                f"It was designed by the engineer Gustave Eiffel and completed in 1889.\"\n"
-                f"Entity List: [\"Eiffel Tower\", \"Paris\", \"France\", \"landmark\", \"Gustave Eiffel\", \"1889\"]\n"
-                f"Semantic Graph: [[\"Eiffel Tower\", \"located in\", \"Paris\"], [\"Eiffel Tower\", \"located in\", \"France\"], "
-                f"[\"Eiffel Tower\", \"instance of\", \"landmark\"], [\"Eiffel Tower\", \"attraction type\", \"tourist attraction\"], "
-                f"[\"Eiffel Tower\", \"designed by\", \"Gustave Eiffel\"], [\"Eiffel Tower\", \"completion year\", \"1889\"]]\n\n"
-                f"Refer to the examples and here is the question:\nText: {text[i]}\nEntity List:{entity[i]}\nSemantic graph:"
+                f"Mục tiêu:\nChuyển đổi văn bản thành một đồ thị ngữ nghĩa (dạng danh sách các bộ ba triples) với văn bản và các thực thể cho trước. "
+                f"Nói cách cách khác, bạn cần tìm mối quan hệ giữa các thực thể dựa trên thông tin trong văn bản.\n"
+                f"Lưu ý:\n1. Tạo ra càng nhiều bộ ba (triples) càng tốt. "
+                f"2. Hãy chắc chắn rằng mỗi phần tử trong danh sách là một bộ ba (triple) có đúng 3 phần tử.\n\n"
+                f"Dưới đây là hai ví dụ:\n"
+                f"Ví dụ 1: \nText: \"Shotgate Thickets là một khu bảo tồn thiên nhiên ở Vương quốc Anh được điều hành bởi Essex Wildlife Trust.\"\n"
+                f"Entity List: [\"Shotgate Thickets\", \"Khu bảo tồn thiên nhiên\", \"Vương quốc Anh\", \"Essex Wildlife Trust\"]\n"
+                f"Semantic Graph: [[\"Shotgate Thickets\", \"loại hình bảo tồn\", \"Khu bảo tồn thiên nhiên\"], "
+                f"[\"Shotgate Thickets\", \"quốc gia\", \"Vương quốc Anh\"], [\"Shotgate Thickets\", \"vận hành bởi\", \"Essex Wildlife Trust\"]]\n"
+                f"Ví dụ 2:\nText: \"Tháp Eiffel tọa lạc tại Paris, Pháp, là một danh lam thắng cảnh nổi tiếng và là địa điểm thu hút khách du lịch. "
+                f"Nó được thiết kế bởi kỹ sư Gustave Eiffel và hoàn thành vào năm 1889.\"\n"
+                f"Entity List: [\"Tháp Eiffel\", \"Paris\", \"Pháp\", \"danh lam thắng cảnh\", \"Gustave Eiffel\", \"1889\"]\n"
+                f"Semantic Graph: [[\"Tháp Eiffel\", \"tọa lạc tại\", \"Paris\"], [\"Tháp Eiffel\", \"tọa lạc tại\", \"Pháp\"], "
+                f"[\"Tháp Eiffel\", \"là một\", \"danh lam thắng cảnh\"], [\"Tháp Eiffel\", \"được thiết kế bởi\", \"Gustave Eiffel\"], [\"Tháp Eiffel\", \"hoàn thành vào\", \"1889\"]]\n\n"
+                f"Tham khảo các ví dụ trên và thực hiện yêu cầu sau:\nText: {text[i]}\nEntity List:{entity[i]}\nSemantic graph:"
             )
         prompts.append(prompt)
 

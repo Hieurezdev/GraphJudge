@@ -1,19 +1,17 @@
+import sys
+sys.modules['transformer_engine'] = None
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 #os.system("pip install datasets")
 #os.system("pip install deepspeed")
 #os.system("pip install accelerate")
 #os.system("pip install transformers>=4.28.0")
-import sys
 import torch
 import argparse
 import pandas as pd
 from peft import PeftModel
 from tqdm import tqdm
 import transformers
-assert (
-    "LlamaTokenizer" in transformers._import_structure["models.llama"]
-), "LLaMA is now in HuggingFace's main branch.\nPlease reinstall it: pip uninstall transformers && pip install git+https://github.com/huggingface/transformers.git"
 from transformers import LlamaTokenizer, LlamaForCausalLM, GenerationConfig
 
 
@@ -34,11 +32,15 @@ try:
 except:
     pass
 
-model = LlamaForCausalLM.from_pretrained(
+if LOAD_8BIT:
+    model = LlamaForCausalLM.from_pretrained(
         BASE_MODEL,
-        load_in_8bit=LOAD_8BIT,
-        # torch_dtype=torch.float16,
-        # device_map="auto",
+        load_in_8bit=True,
+        device_map="auto",
+    )
+else:
+    model = LlamaForCausalLM.from_pretrained(
+        BASE_MODEL,
     ).half().cuda()
 model = PeftModel.from_pretrained(
         model,
@@ -78,13 +80,21 @@ def evaluate(
     prompt = generate_prompt(instruction, input)
     inputs = tokenizer(prompt, return_tensors="pt")
     input_ids = inputs["input_ids"].to(device)
-    generation_config = GenerationConfig(
-        temperature=temperature,
-        top_p=top_p,
-        top_k=top_k,
-        num_beams=num_beams,
-        **kwargs,
-    )
+    if temperature == 0:
+        generation_config = GenerationConfig(
+            num_beams=num_beams,
+            do_sample=False,
+            **kwargs,
+        )
+    else:
+        generation_config = GenerationConfig(
+            temperature=temperature,
+            top_p=top_p,
+            top_k=top_k,
+            num_beams=num_beams,
+            do_sample=True,
+            **kwargs,
+        )
     print("Input:")
     print(prompt)
     # sequences = model.forward(
@@ -117,8 +127,8 @@ if __name__ == "__main__":
     # parser.add_argument("--foutput", type=str, default="data/WN11/pred_instructions_llama2_7b.csv")
     # parser.add_argument("--finput", type=str, default="data/FB13/test_instructions_llama.csv")
     # parser.add_argument("--foutput", type=str, default="data/FB13/pred_instructions_llama2_7b.csv")
-    parser.add_argument("--finput", type=str, default="data/genwiki_4o/test_instructions_llama2_7b_itr2.csv")
-    parser.add_argument("--foutput", type=str, default="data/genwiki_4o/pred_instructions_llama2_7b_itr2.csv")
+    parser.add_argument("--finput", type=str, default="../datasets/GPT4o_mini_result_corpus10/Graph_Iteration1/test_instructions_llama2_7b_itr1.csv")
+    parser.add_argument("--foutput", type=str, default="../datasets/GPT4o_mini_result_corpus10/Graph_Iteration1/pred_instructions_context_llama2_7b_itr1.csv")
     # parser.add_argument("--finput", type=str, default="data/WN18RR/test_instructions_llama_merge.csv")
     # parser.add_argument("--foutput", type=str, default="data/WN18RR/pred_instructions_llama2_7b_merge.csv")
     args = parser.parse_args()

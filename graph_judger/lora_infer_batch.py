@@ -1,6 +1,7 @@
-import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import sys
+sys.modules['transformer_engine'] = None
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import torch
 import argparse
 import pandas as pd
@@ -8,9 +9,6 @@ from peft import PeftModel
 from tqdm import tqdm
 from datasets import load_dataset
 import transformers
-assert (
-    "LlamaTokenizer" in transformers._import_structure["models.llama"]
-), "LLaMA is now in HuggingFace's main branch.\nPlease reinstall it: pip uninstall transformers && pip install git+https://github.com/huggingface/transformers.git"
 from transformers import LlamaTokenizer, LlamaForCausalLM, GenerationConfig
 
 # model config
@@ -19,7 +17,8 @@ BASE_MODEL = "NousResearch/Llama-2-7b-hf"
 # LORA_WEIGHTS = "models/llama2-7b-lora-wn11/"
 # LORA_WEIGHTS = "models/llama2-7b-lora-FB13/"
 
-LORA_WEIGHTS = "models/llama2-7b-lora-rebel-sub/"
+script_dir = os.path.dirname(os.path.abspath(__file__))
+LORA_WEIGHTS = os.path.join(script_dir, "models", "llama2-7b-lora-rebel-sub")
 # LORA_WEIGHTS = "models/llama2-7b-lora-scierc-context/"
 # LORA_WEIGHTS = "models/llama2-7b-lora-genwiki-context-tmp/"
 # LORA_WEIGHTS = "models/llama2-7b-lora-genwiki-20250508/" 
@@ -42,12 +41,15 @@ try:
 except:
     pass
 
-# model
-model = LlamaForCausalLM.from_pretrained(
+if LOAD_8BIT:
+    model = LlamaForCausalLM.from_pretrained(
         BASE_MODEL,
-        load_in_8bit=LOAD_8BIT,
-        # torch_dtype=torch.float16,
-        # device_map="auto",
+        load_in_8bit=True,
+        device_map="auto",
+    )
+else:
+    model = LlamaForCausalLM.from_pretrained(
+        BASE_MODEL,
     ).half().cuda()
 model = PeftModel.from_pretrained(
         model,
@@ -150,13 +152,21 @@ def batch_evaluate(
     )
     input_ids = inputs["input_ids"].to(device)
     attention_mask = inputs["attention_mask"].to(device)
-    generation_config = GenerationConfig(
-        temperature=temperature,
-        top_p=top_p,
-        top_k=top_k,
-        num_beams=num_beams,
-        **kwargs,
-    )
+    if temperature == 0:
+        generation_config = GenerationConfig(
+            num_beams=num_beams,
+            do_sample=False,
+            **kwargs,
+        )
+    else:
+        generation_config = GenerationConfig(
+            temperature=temperature,
+            top_p=top_p,
+            top_k=top_k,
+            num_beams=num_beams,
+            do_sample=True,
+            **kwargs,
+        )
     with torch.no_grad():
         generation_output = model.generate(
             input_ids=input_ids,
@@ -183,8 +193,11 @@ if __name__ == "__main__":
     # parser.add_argument("--foutput", type=str, default="data/WN11/pred_instructions_llama2_7b.csv")
     # parser.add_argument("--finput", type=str, default="data/FB13/test_instructions_llama.csv")
     # parser.add_argument("--foutput", type=str, default="data/FB13/pred_instructions_llama2_7b.csv")
-    parser.add_argument("--finput", type=str, default="data/rebel_sub_4omini_context/test_instructions_context_llama2_7b_woECTD.csv")
-    parser.add_argument("--foutput", type=str, default="data/rebel_sub_4omini_context/pred_instructions_context_llama2_7b_woECTD.csv")  # pred_instructions_context_genwiki_llama2_7b_itr1.csv
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    default_finput = os.path.abspath(os.path.join(script_dir, "../datasets/GPT4o_mini_result_corpus10/Graph_Iteration1/test_instructions_llama2_7b_itr1.csv"))
+    default_foutput = os.path.abspath(os.path.join(script_dir, "../datasets/GPT4o_mini_result_corpus10/Graph_Iteration1/pred_instructions_context_llama2_7b_itr1.csv"))
+    parser.add_argument("--finput", type=str, default=default_finput)
+    parser.add_argument("--foutput", type=str, default=default_foutput)
     # parser.add_argument("--finput", type=str, default="data/WN18RR/test_instructions_llama_merge.csv")
     # parser.add_argument("--foutput", type=str, default="data/WN18RR/pred_instructions_llama2_7b_merge.csv")
     args = parser.parse_args()

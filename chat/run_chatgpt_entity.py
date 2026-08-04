@@ -3,12 +3,14 @@ import asyncio
 from openai import AsyncOpenAI
 from tqdm.asyncio import tqdm
 
-api_key = ""
-api_base = ""
+api_key = "empty"
+api_base = "http://localhost:8000/v1"
+model_name = "Qwen/Qwen3-4B-Instruct-2507"
 
 # dataset = "rebel_sub"
-dataset = "GenWiki-Hard"  # rebel / webnlg / kelm
+# dataset = "GenWiki-Hard"  # rebel / webnlg / kelm
 # dataset = "SCIERC"
+dataset = "corpus10"
 dataset_path = f'./datasets/GPT4o_mini_result_{dataset}/'
 Iteration = 1
 
@@ -28,7 +30,7 @@ async def api_model(prompt, system_prompt=None, history_messages=[], **kwargs) -
     messages.append({"role": "user", "content": prompt})
     
     response = await openai_async_client.chat.completions.create(
-        model="gpt-4o-mini", messages=messages, temperature=0, **kwargs
+        model=model_name, messages=messages, temperature=0, **kwargs
     )
     return response.choices[0].message.content
 
@@ -47,20 +49,20 @@ async def extract_entities(texts):
     prompts = []
     for t in texts:
         prompt = f"""
-Goal:
-Transform the text into a list of entities.
+Mục tiêu:
+Chuyển đổi văn bản thành một danh sách các thực thể (entities).
 
-Here are two examples:
-Example#1:
-Text: "Shotgate Thickets is a nature reserve in the United Kingdom operated by the Essex Wildlife Trust."
-List of entities: ["Shotgate Thickets", "Nature reserve", "United Kingdom", "Essex Wildlife Trust"]
-Example#2:
-Text: "Garczynski Nunatak () is a cone-shaped nunatak, the highest in a cluster of nunataks close west of Mount Brecher, lying at the north flank of Quonset Glacier in the Wisconsin Range of the Horlick Mountains of Antarctica. It was mapped by the United States Geological Survey from surveys and U.S. Navy air photos, 1959–60, and was named by the Advisory Committee on Antarctic Names for Carl J. Garczynski, a meteorologist in the Byrd Station winter party, 1961."
-List of entities: ["Garczynski Nunatak", "nunatak", "Wisconsin Range", "Mount Brecher", "Quonset Glacier", "Horlick Mountains"]
+Dưới đây là hai ví dụ:
+Ví dụ 1:
+Văn bản: "Shotgate Thickets là một khu bảo tồn thiên nhiên ở Vương quốc Anh được điều hành bởi Essex Wildlife Trust."
+Danh sách thực thể: ["Shotgate Thickets", "Khu bảo tồn thiên nhiên", "Vương quốc Anh", "Essex Wildlife Trust"]
+Ví dụ 2:
+Văn bản: "Cung tròn có độ dài bằng bán kính gọi là cung có số đo 1 radian, gọi tắt là cung 1 radian. Góc ở tâm chắn cung 1 radian gọi là góc có số đo 1 radian, gọi tắt là góc 1 radian."
+Danh sách thực thể: ["Cung tròn", "bán kính", "cung 1 radian", "Góc ở tâm", "góc 1 radian"]
 
-Refer to the examples and here is the question:
-Text: "{t}"
-List of entities: """
+Tham khảo các ví dụ trên và thực hiện yêu cầu sau:
+Văn bản: "{t}"
+Danh sách thực thể: """
         prompts.append(prompt)
     
     entities_list = await _run_api(prompts)
@@ -70,23 +72,23 @@ async def denoise_text(texts, entities_list):
     prompts = []
     for t, entities in zip(texts, entities_list):
         prompt = f"""
-Goal:
-Denoise the raw text with the given entities, which means remove the unrelated text and make it more formatted.
+Mục tiêu:
+Loại bỏ các thông tin không liên quan khỏi văn bản thô dựa trên danh sách thực thể cho trước và viết lại văn bản đó một cách ngắn gọn, chuẩn hóa.
 
-Here are two examples:
-Example#1:
-Raw text: "Zakria Rezai (born 29 July 1989) is an Afghan footballer who plays for Ordu Kabul F.C., which is a football club from Afghanistan. He is also an Afghanistan national football team player, and he has 9 caps in the history. He wears number 14 on his jersey and his position on field is centre back."
-Entities: ["Zakria Rezai", "footballer", "Ordu Kabul F.C.", "Afghanistan", "29 July 1989"]
-Denoised text: "Zakria Rezai is a footballer. Zakria Rezai is a member of the sports team Ordu Kabul F.C. Zakria Rezai has the citizenship of Afghanistan. Zakria Rezai was born on July 29, 1989. Ordu Kabul F.C. is a football club. Ordu Kabul F.C. is based in Afghanistan."
-Example#2:
-Raw text: "Elizabeth Smith, a renowned British artist, was born on 12 May 1978 in London. She is specialized in watercolor paintings and has exhibited her works in various galleries across the United Kingdom. Her most famous work, 'The Summer Breeze,' was sold at a prestigious auction for a record price. Smith is also a member of the Royal Society of Arts and has received several awards for her contributions to the art world."
-Entities: ["Elizabeth Smith", "British artist", "12 May 1978", "London", "watercolor paintings", "United Kingdom", "The Summer Breeze", "Royal Society of Arts"]
-Denoised text: "Elizabeth Smith is a British artist. Elizabeth Smith was born on May 12, 1978. Elizabeth Smith was born in London. Elizabeth Smith specializes in watercolor paintings. Elizabeth Smith's artwork has been exhibited in the United Kingdom. 'The Summer Breeze' is a famous work by Elizabeth Smith. Elizabeth Smith is a member of the Royal Society of Arts."
+Dưới đây là hai ví dụ:
+Ví dụ 1:
+Văn bản thô: "Zakria Rezai (sinh ngày 29 tháng 7 năm 1989) là một cầu thủ bóng đá chơi cho câu lạc bộ Ordu Kabul F.C., một câu lạc bộ bóng đá của Afghanistan. Anh ấy cũng là tuyển thủ quốc gia Afghanistan và đã có 9 lần khoác áo đội tuyển. Anh ấy mặc áo số 14 và chơi ở vị trí trung vệ."
+Thực thể: ["Zakria Rezai", "cầu thủ bóng đá", "Ordu Kabul F.C.", "Afghanistan", "29 tháng 7 năm 1989"]
+Văn bản sau khi lọc: "Zakria Rezai là một cầu thủ bóng đá. Zakria Rezai chơi cho câu lạc bộ bóng đá Ordu Kabul F.C. Zakria Rezai có quốc tịch Afghanistan. Zakria Rezai sinh ngày 29 tháng 7 năm 1989. Ordu Kabul F.C. là một câu lạc bộ bóng đá có trụ sở tại Afghanistan."
+Ví dụ 2:
+Văn bản thô: "Cung tròn có độ dài bằng bán kính gọi là cung có số đo 1 radian, gọi tắt là cung 1 radian. Góc ở tâm chắn cung 1 radian gọi là góc có số đo 1 radian, gọi tắt là góc 1 radian."
+Thực thể: ["Cung tròn", "bán kính", "cung 1 radian", "Góc ở tâm", "góc 1 radian"]
+Văn bản sau khi lọc: "Cung tròn có độ dài bằng bán kính. Cung tròn có độ dài bằng bán kính có số đo 1 radian. Cung tròn có số đo 1 radian được gọi tắt là cung 1 radian. Góc ở tâm chắn cung 1 radian được gọi là góc 1 radian."
 
-Refer to the examples and here is the question:
-Raw text: {t}
-Entities: {entities}
-Denoised text: """
+Tham khảo các ví dụ trên và thực hiện yêu cầu sau:
+Văn bản thô: {t}
+Thực thể: {entities}
+Văn bản sau khi lọc: """
         prompts.append(prompt)
     
     denoised_texts = await _run_api(prompts)
