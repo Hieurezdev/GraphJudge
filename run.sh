@@ -1,0 +1,63 @@
+#!/bin/bash
+set -e  # Dừng script nếu có bất kỳ lệnh nào bị lỗi
+
+echo "==========================================="
+echo "0. Đang đồng bộ hóa/tạo môi trường ảo uv..."
+echo "==========================================="
+uv sync
+
+# Đảm bảo các thư mục đầu ra tồn tại
+mkdir -p datasets/Qwen3_result_corpus10/Iteration1
+mkdir -p datasets/Qwen3_result_corpus10/Graph_Iteration1
+
+echo "==========================================="
+echo "1. Đang trích xuất văn bản từ corpus.jsonl..."
+echo "==========================================="
+uv run python -c "
+import json
+with open('corpus.jsonl', 'r') as f_in, open('datasets/Qwen3_result_corpus10/test.target', 'w') as f_out:
+    for line in f_in:
+        data = json.loads(line)
+        f_out.write(data['text'].strip().replace('\n', ' ') + '\n')
+"
+
+echo "==========================================="
+echo "2. Chạy Entity Extraction & Denoising..."
+echo "==========================================="
+uv run python ./chat/run_chatgpt_entity.py
+
+echo "==========================================="
+echo "3. Chạy Triple Generation..."
+echo "==========================================="
+uv run python ./chat/run_chatgpt_triple.py
+
+echo "==========================================="
+echo "4. Định dạng đồ thị sang CSV..."
+echo "==========================================="
+uv run python ./datasets/prepare_KGCom.py \
+    --task format-graphs \
+    --dataset_path ./datasets/Qwen3_result_corpus10/ \
+    --iteration 1
+
+echo "==========================================="
+echo "5. Chạy Batch Inference với mô hình finetuned..."
+echo "==========================================="
+cd ./graph_judger
+uv run python lora_infer_batch.py \
+    --finput ../datasets/Qwen3_result_corpus10/Graph_Iteration1/test_instructions_llama2_7b_itr1.csv \
+    --foutput ../datasets/Qwen3_result_corpus10/Graph_Iteration1/pred_instructions_context_llama2_7b_itr1.csv
+cd ..
+
+echo "==========================================="
+echo "6. Lọc các bộ ba sai (Triple Filtering)..."
+echo "==========================================="
+uv run python ./datasets/prepare_KGCom.py \
+    --task filter-graphs \
+    --dataset_path ./datasets/Qwen3_result_corpus10/ \
+    --iteration 1 \
+    --pred_model llama2_7b
+
+echo "==========================================="
+echo "Pipeline hoàn thành thành công!"
+echo "Kết quả bộ ba cuối cùng: datasets/Qwen3_result_corpus10/Graph_Iteration1/test_generated_graphs_llama2_7b_final.txt"
+echo "==========================================="

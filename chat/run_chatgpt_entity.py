@@ -11,7 +11,7 @@ model_name = "Qwen/Qwen3-4B-Instruct-2507"
 # dataset = "GenWiki-Hard"  # rebel / webnlg / kelm
 # dataset = "SCIERC"
 dataset = "corpus10"
-dataset_path = f'./datasets/GPT4o_mini_result_{dataset}/'
+dataset_path = f'./datasets/Qwen3_result_{dataset}/'
 Iteration = 1
 
 if Iteration == 1:

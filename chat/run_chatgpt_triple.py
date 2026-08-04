@@ -19,7 +19,7 @@ entity = []
 # dataset = "GenWiki-Hard"
 # dataset = "SCIERC"
 dataset = "corpus10"
-dataset_path = f'./datasets/GPT4o_mini_result_{dataset}/'
+dataset_path = f'./datasets/Qwen3_result_{dataset}/'
 Denoised_Iteration = 1
 Graph_Iteration = 1
 
