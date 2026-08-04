@@ -13,13 +13,7 @@ mkdir -p datasets/Qwen3_result_corpus10/Graph_Iteration1
 echo "==========================================="
 echo "1. Đang trích xuất văn bản từ corpus.jsonl..."
 echo "==========================================="
-uv run python -c "
-import json
-with open('corpus.jsonl', 'r') as f_in, open('datasets/Qwen3_result_corpus10/test.target', 'w') as f_out:
-    for line in f_in:
-        data = json.loads(line)
-        f_out.write(data['text'].strip().replace('\n', ' ') + '\n')
-"
+uv run python ./datasets/prepare_corpus.py
 
 echo "==========================================="
 echo "2. Chạy Entity Extraction & Denoising..."
