@@ -2,7 +2,7 @@ import json
 import os
 
 def main():
-    corpus_path = "corpus.jsonl"
+    corpus_path = "/content/drive/MyDrive/corpus.jsonl"
     target_path = "datasets/Qwen3_result_corpus10/test.target"
     
     # Đảm bảo thư mục đích tồn tại
